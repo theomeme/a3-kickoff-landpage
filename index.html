@@ -49,6 +49,8 @@ button{background:transparent;color:var(--moon);border:0;font:700 12px var(--mon
 button:hover{color:var(--glow)}
 button:focus-visible{outline:1px solid var(--glow);outline-offset:4px}
 .fine{font:400 12px var(--mono);color:var(--haze);margin:0}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+button:disabled{opacity:.6;cursor:wait}
 .ok{font:400 13px var(--mono);color:var(--glow);margin:0}
 
 section{padding-block:96px;border-top:1px solid var(--line)}
@@ -114,7 +116,8 @@ footer{border-top:1px solid var(--line);padding-block:28px;font:400 11px var(--m
       <div class="eyebrow">Mercado Livre · Amazon · Enjoei</div>
       <h1>Nunca mais cancele venda <em>por falta de estoque.</em></h1>
       <p class="lede">Vendeu a peça única no Mercado Livre? <strong>A gente pausa o anúncio na Amazon e no Enjoei na hora.</strong> E mostra seu caixa e quanto dinheiro está parado no estoque, num painel só.</p>
-      <form class="wl" novalidate>
+      <form class="wl" novalidate data-origem="topo">
+        <input type="text" name="site" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp">
         <label for="email-hero" hidden>Seu e-mail</label>
         <input id="email-hero" type="email" placeholder="seu@email.com" required autocomplete="email">
         <button type="submit">Entrar na lista →</button>
@@ -188,7 +191,8 @@ footer{border-top:1px solid var(--line);padding-block:28px;font:400 11px var(--m
     <div class="label" style="margin:0">Lista de espera</div>
     <h2>Seja dos primeiros a testar</h2>
     <p class="sub" style="margin:0">Os primeiros da lista entram no teste fechado e ajudam a decidir o que vem primeiro.</p>
-    <form class="wl" novalidate>
+    <form class="wl" novalidate data-origem="final">
+      <input type="text" name="site" tabindex="-1" autocomplete="off" aria-hidden="true" class="hp">
       <label for="email-final" hidden>Seu e-mail</label>
       <input id="email-final" type="email" placeholder="seu@email.com" required autocomplete="email">
       <button type="submit">Quero entrar →</button>
@@ -199,12 +203,28 @@ footer{border-top:1px solid var(--line);padding-block:28px;font:400 11px var(--m
 <footer><div class="wrap">Fórum (nome provisório) · Rascunho de design</div></footer>
 
 <script>
-document.querySelectorAll('form.wl').forEach(f=>f.addEventListener('submit',e=>{
+/* Lista de espera: cole aqui a URL do app da web do Google Apps Script
+   (passo a passo em docs/lista-de-espera.md). Vazia = modo demonstração. */
+const LISTA_DE_ESPERA_URL = '';
+
+document.querySelectorAll('form.wl').forEach(f=>f.addEventListener('submit',async e=>{
   e.preventDefault();
-  const i=f.querySelector('input');
+  const i=f.querySelector('input[type=email]'),b=f.querySelector('button');
   if(!i.value||!i.checkValidity()){i.focus();i.reportValidity&&i.reportValidity();return}
-  const p=document.createElement('p');p.className='ok';p.textContent='Pronto, você está na lista. (demonstração, nada foi enviado)';
-  f.replaceWith(p);
+  const feito=t=>{const p=document.createElement('p');p.className='ok';p.setAttribute('role','status');p.textContent=t;f.replaceWith(p)};
+  if(!LISTA_DE_ESPERA_URL){feito('Pronto, você está na lista. (demonstração, nada foi enviado)');return}
+  b.disabled=true;const rotulo=b.textContent;b.textContent='Enviando…';
+  try{
+    await fetch(LISTA_DE_ESPERA_URL,{method:'POST',mode:'no-cors',body:new URLSearchParams({
+      email:i.value.trim(),origem:f.dataset.origem||'',pagina:location.href,site:f.querySelector('[name=site]').value
+    })});
+    feito('Pronto, você está na lista. Avisamos por e-mail quando abrir.');
+  }catch(err){
+    b.disabled=false;b.textContent=rotulo;
+    let m=f.parentElement.querySelector('.erro');
+    if(!m){m=document.createElement('p');m.className='fine erro';m.setAttribute('role','alert');f.after(m)}
+    m.textContent='Não conseguimos enviar agora. Confira sua conexão e tente de novo.';
+  }
 }));
 </script>
 </body>
